@@ -1,75 +1,104 @@
 #!/bin/bash
 
-# Instalacja rsync, jeśli nie jest zainstalowany
-if ! command -v rsync &> /dev/null; then
-    echo "Instalowanie rsync..."
-    sudo apt-get update
-    sudo apt-get install rsync -y
-    if [ $? -eq 0 ]; then
-        echo "rsync został pomyślnie zainstalowany."
+LOG_FILE="/home/Dash_installation_process.log"
+CHECKPOINT_FILE="/home/Dash_installation_checkpoint"
+
+# Funkcja do zapisywania logów
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+}
+
+# Funkcja do zapisywania punktu kontrolnego
+set_checkpoint() {
+    echo "$1" > "$CHECKPOINT_FILE"
+}
+
+# Funkcja do odczytania punktu kontrolnego
+get_checkpoint() {
+    if [ -f "$CHECKPOINT_FILE" ]; then
+        cat "$CHECKPOINT_FILE"
     else
-        echo "Błąd podczas instalacji rsync." >&2
+        echo "START"
+    fi
+}
+
+# Pobranie ostatniego punktu kontrolnego
+CHECKPOINT=$(get_checkpoint)
+log "Rozpoczęcie procesu od punktu kontrolnego: $CHECKPOINT"
+
+# Sprawdzenie punktu kontrolnego i wykonanie odpowiednich kroków
+if [ "$CHECKPOINT" == "START" ]; then
+    log "Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany."
+    if ! command -v rsync &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install rsync -y
+        if [ $? -eq 0 ]; then
+            log "rsync został pomyślnie zainstalowany."
+        else
+            log "Błąd podczas instalacji rsync." >&2
+            exit 1
+        fi
+    fi
+    set_checkpoint "CLONE_REPO"
+fi
+
+if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
+    log "Tworzenie tymczasowego folderu do pobrania repozytorium."
+    TEMP_DIR=$(mktemp -d)
+    log "Klonowanie repozytorium z GitHub."
+    git clone https://github.com/SpurtechEngineering/Dash_installation "$TEMP_DIR"
+    if [ $? -eq 0 ]; then
+        log "Pobieranie repozytorium zakończone sukcesem."
+        set_checkpoint "MOVE_FILES"
+    else
+        log "Błąd podczas pobierania repozytorium." >&2
         exit 1
     fi
 fi
 
-# Tworzenie tymczasowego folderu do pobrania repozytorium
-TEMP_DIR=$(mktemp -d)
-
-# Klonowanie repozytorium GitHub do tymczasowego folderu
-git clone https://github.com/SpurtechEngineering/Dash_installation "$TEMP_DIR"
-
-# Sprawdzenie, czy operacja klonowania się powiodła
-if [ $? -eq 0 ]; then
-    echo "Pobieranie repozytorium zakończone sukcesem."
-else
-    echo "Błąd podczas pobierania repozytorium." >&2
-    exit 1
-fi
-
-# Przeniesienie pobranych plików do folderu docelowego z połączeniem istniejącej struktury
-TARGET_DIR="/home/Dash_installation"
-
-# Utworzenie folderu docelowego, jeśli nie istnieje
-mkdir -p "$TARGET_DIR"
-
-# Połączenie struktury plików za pomocą rsync
-rsync -a "$TEMP_DIR/" "$TARGET_DIR/"
-
-# Sprawdzenie, czy operacja rsync się powiodła
-if [ $? -eq 0 ]; then
-    echo "Pliki zostały połączone ze strukturą w folderze $TARGET_DIR."
-else
-    echo "Błąd podczas łączenia plików." >&2
-    exit 1
-fi
-
-# Usunięcie tymczasowego folderu
-rm -rf "$TEMP_DIR"
-
-# Instalacja pliku .deb
-DEB_FILE="$TARGET_DIR/*.deb"
-if [ -f $DEB_FILE ]; then
-    sudo dpkg -i $DEB_FILE
-    
-    # Sprawdzenie, czy operacja instalacji się powiodła
+if [ "$CHECKPOINT" == "MOVE_FILES" ]; then
+    log "Przenoszenie pobranych plików do katalogu głównego (/)."
+    TARGET_DIR="/"
+    rsync -a "$TEMP_DIR/" "$TARGET_DIR/"
     if [ $? -eq 0 ]; then
-        echo "Instalacja pliku .deb zakończona sukcesem."
-        
-        # Instalacja brakujących zależności
-        sudo apt-get -f install -y
-        
+        log "Pliki zostały przeniesione do katalogu głównego."
+        rm -rf "$TEMP_DIR"
+        set_checkpoint "INSTALL_DEB"
+    else
+        log "Błąd podczas przenoszenia plików." >&2
+        exit 1
+    fi
+fi
+
+if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
+    log "Wyszukiwanie pliku .deb zawierającego 'realdash' w nazwie."
+    DEB_FILE=$(find / -type f -name "*realdash*.deb" 2>/dev/null | head -n 1)
+    if [ -n "$DEB_FILE" ]; then
+        log "Znaleziono plik .deb: $DEB_FILE. Rozpoczynanie instalacji."
+        sudo dpkg -i "$DEB_FILE"
         if [ $? -eq 0 ]; then
-            echo "Instalacja brakujących zależności zakończona sukcesem."
+            log "Instalacja pliku .deb zakończona sukcesem."
+            log "Rozpoczynanie instalacji brakujących zależności."
+            sudo apt-get -f install -y
+            if [ $? -eq 0 ]; then
+                log "Instalacja brakujących zależności zakończona sukcesem."
+                set_checkpoint "FINISH"
+            else
+                log "Błąd podczas instalacji brakujących zależności." >&2
+                exit 1
+            fi
         else
-            echo "Błąd podczas instalacji brakujących zależności." >&2
+            log "Błąd podczas instalacji pliku .deb." >&2
             exit 1
         fi
     else
-        echo "Błąd podczas instalacji pliku .deb." >&2
+        log "Nie znaleziono pliku .deb zawierającego 'realdash' w nazwie." >&2
         exit 1
     fi
-else
-    echo "Plik .deb nie istnieje w podanej lokalizacji: $DEB_FILE" >&2
-    exit 1
+fi
+
+if [ "$CHECKPOINT" == "FINISH" ]; then
+    log "Proces instalacji zakończony pomyślnie!"
+    rm -f "$CHECKPOINT_FILE"
+    exit 0
 fi
