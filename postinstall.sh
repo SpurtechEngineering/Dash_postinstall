@@ -26,10 +26,11 @@ get_checkpoint() {
 CHECKPOINT=$(get_checkpoint)
 log "Rozpoczęcie procesu od punktu kontrolnego: $CHECKPOINT"
 
-# Sprawdzenie punktu kontrolnego i wykonanie odpowiednich kroków
+# Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany
 if [ "$CHECKPOINT" == "START" ]; then
-    log "Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany."
+    log "Sprawdzanie i instalacja rsync, jeśli jest wymagane."
     if ! command -v rsync &> /dev/null; then
+        log "rsync nie jest zainstalowany. Rozpoczynanie instalacji."
         sudo apt-get update
         sudo apt-get install rsync -y
         if [ $? -eq 0 ]; then
@@ -38,6 +39,8 @@ if [ "$CHECKPOINT" == "START" ]; then
             log "Błąd podczas instalacji rsync." >&2
             exit 1
         fi
+    else
+        log "rsync jest już zainstalowany. Kontynuowanie procesu."
     fi
     set_checkpoint "CLONE_REPO"
 fi
