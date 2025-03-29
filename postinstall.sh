@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Instalacja rsync, jeśli nie jest zainstalowany
+if ! command -v rsync &> /dev/null; then
+    echo "Instalowanie rsync..."
+    sudo apt-get update
+    sudo apt-get install rsync -y
+    if [ $? -eq 0 ]; then
+        echo "rsync został pomyślnie zainstalowany."
+    else
+        echo "Błąd podczas instalacji rsync." >&2
+        exit 1
+    fi
+fi
+
 # Tworzenie tymczasowego folderu do pobrania repozytorium
 TEMP_DIR=$(mktemp -d)
 
@@ -14,15 +27,20 @@ else
     exit 1
 fi
 
-# Przeniesienie pobranych plików do folderu docelowego za pomocą rsync
-TARGET_DIR="/"
-rsync -av --ignore-existing "$TEMP_DIR/" "$TARGET_DIR"
+# Przeniesienie pobranych plików do folderu docelowego z połączeniem istniejącej struktury
+TARGET_DIR="/home/Dash_installation"
 
-# Sprawdzenie, czy operacja przenoszenia się powiodła
+# Utworzenie folderu docelowego, jeśli nie istnieje
+mkdir -p "$TARGET_DIR"
+
+# Połączenie struktury plików za pomocą rsync
+rsync -a "$TEMP_DIR/" "$TARGET_DIR/"
+
+# Sprawdzenie, czy operacja rsync się powiodła
 if [ $? -eq 0 ]; then
-    echo "Pliki zostały pomyślnie połączone z istniejącą strukturą w $TARGET_DIR."
+    echo "Pliki zostały połączone ze strukturą w folderze $TARGET_DIR."
 else
-    echo "Błąd podczas przenoszenia plików." >&2
+    echo "Błąd podczas łączenia plików." >&2
     exit 1
 fi
 
@@ -30,9 +48,9 @@ fi
 rm -rf "$TEMP_DIR"
 
 # Instalacja pliku .deb
-DEB_FILE="/home/Dash_installation/*.deb"
-if [ -f "$DEB_FILE" ]; then
-    sudo dpkg -i "$DEB_FILE"
+DEB_FILE="$TARGET_DIR/*.deb"
+if [ -f $DEB_FILE ]; then
+    sudo dpkg -i $DEB_FILE
     
     # Sprawdzenie, czy operacja instalacji się powiodła
     if [ $? -eq 0 ]; then
