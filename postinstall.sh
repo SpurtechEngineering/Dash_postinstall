@@ -4,7 +4,7 @@
 TEMP_DIR=$(mktemp -d)
 
 # Klonowanie repozytorium GitHub do tymczasowego folderu
-git clone https://github.com/SpurtechEngineering/Dash.git "$TEMP_DIR"
+git clone https://github.com/SpurtechEngineering/Dash_installation "$TEMP_DIR"
 
 # Sprawdzenie, czy operacja klonowania się powiodła
 if [ $? -eq 0 ]; then
@@ -15,7 +15,7 @@ else
 fi
 
 # Przeniesienie pobranych plików do folderu docelowego
-TARGET_DIR="/pi/home"
+TARGET_DIR="/home/Dash_installation"
 mv "$TEMP_DIR"/* "$TARGET_DIR"
 
 # Sprawdzenie, czy operacja przenoszenia się powiodła
@@ -30,7 +30,7 @@ fi
 rm -rf "$TEMP_DIR"
 
 # Instalacja pliku .deb
-DEB_FILE="/path/to/plik.deb"
+DEB_FILE="/home/Dash_installation/*.deb"
 if [ -f "$DEB_FILE" ]; then
     sudo dpkg -i "$DEB_FILE"
     
