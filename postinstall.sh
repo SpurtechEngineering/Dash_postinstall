@@ -3,9 +3,12 @@
 LOG_FILE="/home/Dash_installation_process.log"
 CHECKPOINT_FILE="/home/Dash_installation_checkpoint"
 
+# Przekierowanie całego procesu do pliku logu
+exec > >(tee -a "$LOG_FILE") 2>&1
+
 # Funkcja do zapisywania logów
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
 # Funkcja do zapisywania punktu kontrolnego
