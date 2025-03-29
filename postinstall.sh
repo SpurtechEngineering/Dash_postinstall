@@ -22,12 +22,28 @@ get_checkpoint() {
     fi
 }
 
+# Sprawdzenie dostępności Internetu
+check_internet() {
+    if ! ping -c 1 google.com &> /dev/null; then
+        log "Brak połączenia z Internetem. Sprawdź połączenie sieciowe i uruchom ponownie skrypt."
+        exit 1
+    fi
+}
+
 # Pobranie ostatniego punktu kontrolnego
 CHECKPOINT=$(get_checkpoint)
 log "Rozpoczęcie procesu od punktu kontrolnego: $CHECKPOINT"
 
-# Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany
+# Sprawdzanie dostępności Internetu na początku skryptu
 if [ "$CHECKPOINT" == "START" ]; then
+    log "Sprawdzanie połączenia z Internetem."
+    check_internet
+    log "Połączenie z Internetem jest aktywne."
+    set_checkpoint "INSTALL_RSYNC"
+fi
+
+# Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany
+if [ "$CHECKPOINT" == "INSTALL_RSYNC" ]; then
     log "Sprawdzanie i instalacja rsync, jeśli jest wymagane."
     if ! command -v rsync &> /dev/null; then
         log "rsync nie jest zainstalowany. Rozpoczynanie instalacji."
@@ -45,6 +61,7 @@ if [ "$CHECKPOINT" == "START" ]; then
     set_checkpoint "CLONE_REPO"
 fi
 
+# Klonowanie repozytorium GitHub
 if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
     log "Tworzenie tymczasowego folderu do pobrania repozytorium."
     TEMP_DIR=$(mktemp -d)
@@ -59,6 +76,7 @@ if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
     fi
 fi
 
+# Przenoszenie plików
 if [ "$CHECKPOINT" == "MOVE_FILES" ]; then
     log "Przenoszenie pobranych plików do katalogu głównego (/)."
     TARGET_DIR="/"
@@ -73,6 +91,7 @@ if [ "$CHECKPOINT" == "MOVE_FILES" ]; then
     fi
 fi
 
+# Instalacja pliku .deb
 if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
     log "Wyszukiwanie pliku .deb zawierającego 'realdash' w nazwie."
     DEB_FILE=$(find / -type f -name "*realdash*.deb" 2>/dev/null | head -n 1)
@@ -100,6 +119,7 @@ if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
     fi
 fi
 
+# Zakończenie procesu
 if [ "$CHECKPOINT" == "FINISH" ]; then
     log "Proces instalacji zakończony pomyślnie!"
     rm -f "$CHECKPOINT_FILE"
