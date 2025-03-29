@@ -66,12 +66,21 @@ if [ "$CHECKPOINT" == "INSTALL_RSYNC" ]; then
     CHECKPOINT="CLONE_REPO"  # Ręczne przejście do kolejnego checkpointu
 fi
 
-# Klonowanie repozytorium GitHub
+# Klonowanie repozytorium GitHub z podglądem postępu
 if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
     log "Tworzenie tymczasowego folderu do pobrania repozytorium."
     TEMP_DIR=$(mktemp -d)
-    log "Klonowanie repozytorium z GitHub."
-    git clone https://github.com/SpurtechEngineering/Dash_installation "$TEMP_DIR"
+    log "Klonowanie repozytorium z GitHub z podglądem postępu."
+
+    git clone --progress https://github.com/SpurtechEngineering/Dash_installation "$TEMP_DIR" 2>&1 | while read -r line; do
+        if [[ $line =~ ([0-9]+)% ]]; then
+            PERCENTAGE=${BASH_REMATCH[1]}
+            echo -ne "Postęp klonowania: $PERCENTAGE%\r"
+        fi
+    done
+
+    echo "" # Dodanie nowej linii po zakończeniu wyświetlania postępu
+
     if [ $? -eq 0 ]; then
         log "Pobieranie repozytorium zakończone sukcesem."
         set_checkpoint "MOVE_FILES"
@@ -98,13 +107,23 @@ if [ "$CHECKPOINT" == "MOVE_FILES" ]; then
     fi
 fi
 
-# Instalacja pliku .deb
+# Instalacja pliku .deb z podglądem postępu
 if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
     log "Wyszukiwanie pliku .deb zawierającego 'realdash' w nazwie."
     DEB_FILE=$(find / -type f -name "*realdash*.deb" 2>/dev/null | head -n 1)
     if [ -n "$DEB_FILE" ]; then
         log "Znaleziono plik .deb: $DEB_FILE. Rozpoczynanie instalacji."
-        sudo dpkg -i "$DEB_FILE"
+
+        # Wyświetlanie podglądu postępu instalacji pliku .deb
+        TOTAL_SIZE=$(du -b "$DEB_FILE" | cut -f1)
+        sudo dpkg -i "$DEB_FILE" 2>&1 | while read -r line; do
+            if [[ $line == *"Unpacking"* || $line == *"Preparing"* || $line == *"Setting up"* ]]; then
+                PROGRESS=$(echo "$line" | grep -o "[0-9]*%" | sed 's/%//g')
+                echo -ne "Postęp instalacji: $PROGRESS%\r"
+            fi
+        done
+        echo "" # Dodanie nowej linii po zakończeniu wyświetlania postępu
+
         if [ $? -eq 0 ]; then
             log "Instalacja pliku .deb zakończona sukcesem."
             log "Rozpoczynanie instalacji brakujących zależności."
