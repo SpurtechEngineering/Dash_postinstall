@@ -29,11 +29,29 @@ fi
 # Usunięcie tymczasowego folderu
 rm -rf "$TEMP_DIR"
 
-#Install Realdash
-sudo dpkg -i *.deb
-sudo apt-get -f install -y
-sudo apt-get kdialog -y
-sudo apt --fix-broken install
-
-
-
+# Instalacja pliku .deb
+DEB_FILE="/path/to/plik.deb"
+if [ -f "$DEB_FILE" ]; then
+    sudo dpkg -i "$DEB_FILE"
+    
+    # Sprawdzenie, czy operacja instalacji się powiodła
+    if [ $? -eq 0 ]; then
+        echo "Instalacja pliku .deb zakończona sukcesem."
+        
+        # Instalacja brakujących zależności
+        sudo apt-get -f install -y
+        
+        if [ $? -eq 0 ]; then
+            echo "Instalacja brakujących zależności zakończona sukcesem."
+        else
+            echo "Błąd podczas instalacji brakujących zależności." >&2
+            exit 1
+        fi
+    else
+        echo "Błąd podczas instalacji pliku .deb." >&2
+        exit 1
+    fi
+else
+    echo "Plik .deb nie istnieje w podanej lokalizacji: $DEB_FILE" >&2
+    exit 1
+fi
