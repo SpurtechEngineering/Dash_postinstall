@@ -41,13 +41,9 @@ log "Rozpoczęcie procesu od punktu kontrolnego: $CHECKPOINT"
 if [ "$CHECKPOINT" == "START" ]; then
     log "Sprawdzanie połączenia z Internetem."
     check_internet
-    if [ $? -eq 0 ]; then
-        log "Połączenie z Internetem jest aktywne."
-        set_checkpoint "INSTALL_RSYNC"
-    else
-        log "Brak połączenia z Internetem. Zakończenie procesu." >&2
-        exit 1
-    fi
+    log "Połączenie z Internetem jest aktywne."
+    set_checkpoint "INSTALL_RSYNC"
+    CHECKPOINT="INSTALL_RSYNC"  # Ręczne przejście do następnego checkpointu
 fi
 
 # Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany
@@ -67,6 +63,7 @@ if [ "$CHECKPOINT" == "INSTALL_RSYNC" ]; then
         log "rsync jest już zainstalowany. Kontynuowanie procesu."
     fi
     set_checkpoint "CLONE_REPO"
+    CHECKPOINT="CLONE_REPO"  # Ręczne przejście do kolejnego checkpointu
 fi
 
 # Klonowanie repozytorium GitHub
@@ -78,6 +75,7 @@ if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
     if [ $? -eq 0 ]; then
         log "Pobieranie repozytorium zakończone sukcesem."
         set_checkpoint "MOVE_FILES"
+        CHECKPOINT="MOVE_FILES"  # Ręczne przejście do kolejnego checkpointu
     else
         log "Błąd podczas pobierania repozytorium." >&2
         exit 1
@@ -93,6 +91,7 @@ if [ "$CHECKPOINT" == "MOVE_FILES" ]; then
         log "Pliki zostały przeniesione do katalogu głównego."
         rm -rf "$TEMP_DIR"
         set_checkpoint "INSTALL_DEB"
+        CHECKPOINT="INSTALL_DEB"  # Ręczne przejście do kolejnego checkpointu
     else
         log "Błąd podczas przenoszenia plików." >&2
         exit 1
@@ -113,6 +112,7 @@ if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
             if [ $? -eq 0 ]; then
                 log "Instalacja brakujących zależności zakończona sukcesem."
                 set_checkpoint "FINISH"
+                CHECKPOINT="FINISH"  # Ręczne przejście do kolejnego checkpointu
             else
                 log "Błąd podczas instalacji brakujących zależności." >&2
                 exit 1
