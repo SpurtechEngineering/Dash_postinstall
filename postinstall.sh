@@ -14,13 +14,13 @@ else
     exit 1
 fi
 
-# Przeniesienie pobranych plików do folderu docelowego
+# Przeniesienie pobranych plików do folderu docelowego za pomocą rsync
 TARGET_DIR="/"
-mv "$TEMP_DIR"/* "$TARGET_DIR"
+rsync -av --ignore-existing "$TEMP_DIR/" "$TARGET_DIR"
 
 # Sprawdzenie, czy operacja przenoszenia się powiodła
 if [ $? -eq 0 ]; then
-    echo "Pliki zostały przeniesione do folderu $TARGET_DIR."
+    echo "Pliki zostały pomyślnie połączone z istniejącą strukturą w $TARGET_DIR."
 else
     echo "Błąd podczas przenoszenia plików." >&2
     exit 1
