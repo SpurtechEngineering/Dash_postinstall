@@ -28,7 +28,7 @@ get_checkpoint() {
 # Sprawdzenie dostępności Internetu
 check_internet() {
     if ! ping -c 1 google.com &> /dev/null; then
-        log "Brak połączenia z Internetem. Sprawdź połączenie sieciowe i uruchom ponownie skrypt."
+        log "Brak połączenia z Internetem. Sprawdź swoje ustawienia sieciowe." >&2
         exit 1
     fi
 }
