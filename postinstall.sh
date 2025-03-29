@@ -15,8 +15,7 @@ else
 fi
 
 # Przeniesienie pobranych plików do folderu docelowego
-mkdir -p /home/Dash_installation
-TARGET_DIR="/home/Dash_installation"
+TARGET_DIR="/"
 mv "$TEMP_DIR"/* "$TARGET_DIR"
 
 # Sprawdzenie, czy operacja przenoszenia się powiodła
