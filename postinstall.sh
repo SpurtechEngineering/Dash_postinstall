@@ -1,8 +1,3 @@
-#!/bin/bash
-
-LOG_FILE="/home/Dash_installation_process.log"
-CHECKPOINT_FILE="/home/Dash_installation_checkpoint"
-
 # Przekierowanie całego procesu do pliku logu
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -61,6 +56,74 @@ if [ "$CHECKPOINT" == "INSTALL_RSYNC" ]; then
         fi
     else
         log "rsync jest już zainstalowany. Kontynuowanie procesu."
+    fi
+    set_checkpoint "INSTALL_TIGERVNC"
+    CHECKPOINT="INSTALL_TIGERVNC"
+fi
+
+# Instalacja TigerVNC i bezpieczne ustawienie hasła
+if [ "$CHECKPOINT" == "INSTALL_TIGERVNC" ]; then
+    log "Instalacja TigerVNC i konfiguracja bezpiecznego przechowywania hasła."
+    sudo apt install -y tigervnc-standalone-server pass
+    if [ $? -eq 0 ]; then
+        log "TigerVNC oraz narzędzie pass zostały pomyślnie zainstalowane."
+    else
+        log "Błąd podczas instalacji TigerVNC lub pass." >&2
+        exit 1
+    fi
+
+    log "Tworzenie magazynu GPG dla haseł."
+    gpg --batch --gen-key <<EOF
+Key-Type: 1
+Key-Length: 2048
+Name-Real: Secure VNC
+Name-Email: secure-vnc@example.com
+Expire-Date: 0
+Passphrase: ""
+%commit
+EOF
+    if [ $? -eq 0 ]; then
+        log "Magazyn GPG został pomyślnie utworzony."
+    else
+        log "Błąd podczas tworzenia magazynu GPG." >&2
+        exit 1
+    fi
+
+    log "Konfiguracja narzędzia pass."
+    pass init "Secure VNC"
+    if [ $? -eq 0 ]; then
+        log "Narzędzie pass zostało skonfigurowane."
+    else
+        log "Błąd podczas konfiguracji narzędzia pass." >&2
+        exit 1
+    fi
+
+    log "Zapisywanie hasła do TigerVNC w narzędziu pass."
+    echo "rootpasswordste" | pass insert VNC/root-password
+    if [ $? -eq 0 ]; then
+        log "Hasło zostało pomyślnie zapisane w narzędziu pass."
+    else
+        log "Błąd podczas zapisywania hasła." >&2
+        exit 1
+    fi
+
+    log "Ustawienie hasła do TigerVNC."
+    pass VNC/root-password | vncpasswd -f > ~/.vnc/passwd
+    chmod 600 ~/.vnc/passwd
+    if [ $? -eq 0 ]; then
+        log "Hasło TigerVNC zostało pomyślnie ustawione."
+    else
+        log "Błąd podczas ustawiania hasła TigerVNC." >&2
+        exit 1
+    fi
+
+    log "Uruchamianie TigerVNC."
+    vncserver :1
+    if [ $? -eq 0 ]; then
+        log "TigerVNC został pomyślnie uruchomiony."
+    else
+        log "Błąd podczas uruchamiania TigerVNC." >&2
+        exit 1
     fi
     set_checkpoint "CLONE_REPO"
     CHECKPOINT="CLONE_REPO"
