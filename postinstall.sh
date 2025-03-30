@@ -43,7 +43,7 @@ if [ "$CHECKPOINT" == "START" ]; then
     check_internet
     log "Połączenie z Internetem jest aktywne."
     set_checkpoint "INSTALL_RSYNC"
-    CHECKPOINT="INSTALL_RSYNC"  # Ręczne przejście do następnego checkpointu
+    CHECKPOINT="INSTALL_RSYNC"
 fi
 
 # Sprawdzanie i instalacja rsync, jeśli nie jest zainstalowany
@@ -63,7 +63,7 @@ if [ "$CHECKPOINT" == "INSTALL_RSYNC" ]; then
         log "rsync jest już zainstalowany. Kontynuowanie procesu."
     fi
     set_checkpoint "CLONE_REPO"
-    CHECKPOINT="CLONE_REPO"  # Ręczne przejście do kolejnego checkpointu
+    CHECKPOINT="CLONE_REPO"
 fi
 
 # Klonowanie repozytorium GitHub z podglądem postępu
@@ -84,7 +84,7 @@ if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
     if [ $? -eq 0 ]; then
         log "Pobieranie repozytorium zakończone sukcesem."
         set_checkpoint "MOVE_FILES"
-        CHECKPOINT="MOVE_FILES"  # Ręczne przejście do kolejnego checkpointu
+        CHECKPOINT="MOVE_FILES"
     else
         log "Błąd podczas pobierania repozytorium." >&2
         exit 1
@@ -100,7 +100,7 @@ if [ "$CHECKPOINT" == "MOVE_FILES" ]; then
         log "Pliki zostały przeniesione do katalogu głównego."
         rm -rf "$TEMP_DIR"
         set_checkpoint "INSTALL_DEB"
-        CHECKPOINT="INSTALL_DEB"  # Ręczne przejście do kolejnego checkpointu
+        CHECKPOINT="INSTALL_DEB"
     else
         log "Błąd podczas przenoszenia plików." >&2
         exit 1
@@ -114,16 +114,7 @@ if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
     if [ -n "$DEB_FILE" ]; then
         log "Znaleziono plik .deb: $DEB_FILE. Rozpoczynanie instalacji."
 
-        # Wyświetlanie podglądu postępu instalacji pliku .deb
-        TOTAL_SIZE=$(du -b "$DEB_FILE" | cut -f1)
-        sudo dpkg -i "$DEB_FILE" 2>&1 | while read -r line; do
-            if [[ $line == *"Unpacking"* || $line == *"Preparing"* || $line == *"Setting up"* ]]; then
-                PROGRESS=$(echo "$line" | grep -o "[0-9]*%" | sed 's/%//g')
-                echo -ne "Postęp instalacji: $PROGRESS%\r"
-            fi
-        done
-        echo "" # Dodanie nowej linii po zakończeniu wyświetlania postępu
-
+        sudo dpkg -i "$DEB_FILE"
         if [ $? -eq 0 ]; then
             log "Instalacja pliku .deb zakończona sukcesem."
             log "Rozpoczynanie instalacji brakujących zależności."
@@ -131,7 +122,7 @@ if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
             if [ $? -eq 0 ]; then
                 log "Instalacja brakujących zależności zakończona sukcesem."
                 set_checkpoint "FINISH"
-                CHECKPOINT="FINISH"  # Ręczne przejście do kolejnego checkpointu
+                CHECKPOINT="FINISH"
             else
                 log "Błąd podczas instalacji brakujących zależności." >&2
                 exit 1
@@ -146,9 +137,16 @@ if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
     fi
 fi
 
-# Zakończenie procesu
+# Uruchamianie RealDash z opóźnieniem i zamykanie terminala
 if [ "$CHECKPOINT" == "FINISH" ]; then
     log "Proces instalacji zakończony pomyślnie!"
+    log "Aplikacja RealDash uruchomi się za 10 sekund..."
+    sleep 5  # Opóźnienie przed uruchomieniem aplikacji
+    log "Uruchamianie aplikacji RealDash..."
+    /usr/bin/realdash & disown  # Uruchomienie aplikacji RealDash w tle
+    log "Terminal zamknie się za 5 sekund..."
+    sleep 5  # Opóźnienie przed zamknięciem terminala
+    log "Zamykanie terminala..."
     rm -f "$CHECKPOINT_FILE"
     exit 0
 fi
