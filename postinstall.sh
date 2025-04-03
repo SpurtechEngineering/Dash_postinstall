@@ -1,3 +1,8 @@
+#!/bin/bash
+
+LOG_FILE="/home/Dash_installation_process.log"
+CHECKPOINT_FILE="/home/Dash_installation_checkpoint"
+
 # Przekierowanie całego procesu do pliku logu
 exec > >(tee -a "$LOG_FILE") 2>&1
 
