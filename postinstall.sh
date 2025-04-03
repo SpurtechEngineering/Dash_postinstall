@@ -115,21 +115,28 @@ if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
         log "Znaleziono plik .deb: $DEB_FILE. Rozpoczynanie instalacji."
 
         sudo dpkg -i "$DEB_FILE"
-        if [ $? -eq 0 ]; then
-            log "Instalacja pliku .deb zakończona sukcesem."
-            log "Rozpoczynanie instalacji brakujących zależności."
+        if [ $? -ne 0 ]; then
+            log "Błąd podczas instalacji pliku .deb. Instalacja brakujących zależności."
             sudo apt-get -f install -y
             if [ $? -eq 0 ]; then
-                log "Instalacja brakujących zależności zakończona sukcesem."
-                set_checkpoint "FINISH"
-                CHECKPOINT="FINISH"
+                log "Brakujące zależności zostały pomyślnie zainstalowane. Powtórzenie instalacji pliku .deb."
+                sudo dpkg -i "$DEB_FILE"
+                if [ $? -eq 0 ]; then
+                    log "Instalacja pliku .deb zakończona sukcesem."
+                    set_checkpoint "FINISH"
+                    CHECKPOINT="FINISH"
+                else
+                    log "Błąd podczas ponownej instalacji pliku .deb." >&2
+                    exit 1
+                fi
             else
                 log "Błąd podczas instalacji brakujących zależności." >&2
                 exit 1
             fi
         else
-            log "Błąd podczas instalacji pliku .deb." >&2
-            exit 1
+            log "Instalacja pliku .deb zakończona sukcesem."
+            set_checkpoint "FINISH"
+            CHECKPOINT="FINISH"
         fi
     else
         log "Nie znaleziono pliku .deb zawierającego 'realdash' w nazwie." >&2
