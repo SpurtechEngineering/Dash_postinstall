@@ -40,7 +40,7 @@ retry_command() {
     local success=0
 
     while [ $count -le $max_retries ]; do
-        if eval "$command"; then
+        if eval "sudo $command"; then
             success=1
             break
         else
@@ -49,6 +49,20 @@ retry_command() {
         fi
         ((count++))
     done
+
+    if [ $success -eq 0 ]; then
+        log "Nie udało się wykonać operacji po $max_retries próbach. Sprawdzanie problemów z uprawnieniami..."
+        
+        # Jeśli problem wynika z uprawnień, próbujemy wymusić instalację pakietu
+        if echo "$command" | grep -qE 'apt-get install|dpkg -i'; then
+            log "Wykryto błąd uprawnień. Próbuję ponownie z użyciem sudo..."
+            sudo bash -c "$command"
+        else
+            log "Nie udało się wykonać operacji po pełnym sprawdzeniu. Zatrzymanie skryptu." >&2
+            exit 1
+        fi
+    fi
+}
 
     if [ $success -eq 0 ]; then
         log "Nie udało się wykonać operacji po $max_retries próbach. Zatrzymanie skryptu." >&2
@@ -70,8 +84,8 @@ fi
 if [ "$CHECKPOINT" == "INSTALL_RSYNC" ]; then
     log "Sprawdzanie i instalacja rsync, jeśli jest wymagane."
     if ! command -v rsync &> /dev/null; then
-        retry_command "sudo apt-get update"
-        retry_command "sudo apt-get install rsync -y"
+        retry_command "apt-get update"
+        retry_command "apt-get install rsync -y"
     fi
     set_checkpoint "CLONE_REPO"
     CHECKPOINT="CLONE_REPO"
@@ -100,7 +114,7 @@ if [ "$CHECKPOINT" == "INSTALL_DEPENDENCIES" ]; then
 
     for PACKAGE in "${REQUIRED_PACKAGES[@]}"; do
         if ! dpkg -l | grep -qw "$PACKAGE"; then
-            retry_command "sudo apt-get install -y $PACKAGE"
+            retry_command "apt-get install -y $PACKAGE"
         else
             log "$PACKAGE jest już zainstalowany."
         fi
@@ -113,9 +127,9 @@ fi
 if [ "$CHECKPOINT" == "INSTALL_DEB" ]; then
     DEB_FILE=$(find /home -type f -name "*realdash*.deb" | head -n 1)
     if [ -n "$DEB_FILE" ]; then
-        retry_command "sudo dpkg -i '$DEB_FILE'"
-        retry_command "sudo apt-get -f install -y"
-        retry_command "sudo dpkg -i '$DEB_FILE'"
+        retry_command "dpkg -i '$DEB_FILE'"
+        retry_command "apt-get -f install -y"
+        retry_command "dpkg -i '$DEB_FILE'"
         set_checkpoint "ADD_AUTOSTART"
         CHECKPOINT="ADD_AUTOSTART"
     fi
@@ -151,10 +165,10 @@ fi
 
 if [ "$CHECKPOINT" == "ADD_CAN_SUPPORT" ]; then
     log "Instalacja pakietu can-utils."
-    retry_command "sudo apt-get install -y can-utils"
+    retry_command "apt-get install -y can-utils"
 
-    retry_command "sudo dtoverlay mcp2515-can0,oscillator=16000000,interrupt=25"
-    retry_command "sudo dtoverlay spi-bcm2835-overlay"
+    retry_command "dtoverlay mcp2515-can0,oscillator=16000000,interrupt=25"
+    retry_command "dtoverlay spi-bcm2835-overlay"
 
     log "Tworzenie pliku konfiguracyjnego CAN."
     CONFIG_FILE="/home/dietpi/can_config.conf"
