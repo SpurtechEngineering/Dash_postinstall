@@ -82,6 +82,30 @@ if [ "$CHECKPOINT" == "CLONE_REPO" ]; then
     retry_command "git clone https://github.com/SpurtechEngineering/Dash_installation $TEMP_DIR"
     rsync -a "$TEMP_DIR/" /
     rm -rf "$TEMP_DIR"
+    set_checkpoint "INSTALL_DEPENDENCIES"
+    CHECKPOINT="INSTALL_DEPENDENCIES"
+fi
+
+if [ "$CHECKPOINT" == "INSTALL_DEPENDENCIES" ]; then
+    log "Instalacja brakujących zależności dla RealDash."
+    
+    REQUIRED_PACKAGES=(
+        "libbluetooth3"
+        "libgles2"
+        "libgstreamer1.0-0"
+        "libopenal1"
+        "libvlc5"
+        "gpiod"
+    )
+
+    for PACKAGE in "${REQUIRED_PACKAGES[@]}"; do
+        if ! dpkg -l | grep -qw "$PACKAGE"; then
+            retry_command "sudo apt-get install -y $PACKAGE"
+        else
+            log "$PACKAGE jest już zainstalowany."
+        fi
+    done
+
     set_checkpoint "INSTALL_DEB"
     CHECKPOINT="INSTALL_DEB"
 fi
