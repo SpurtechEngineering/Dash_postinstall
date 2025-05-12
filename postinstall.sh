@@ -26,6 +26,17 @@ if [ "$1" == "--reset" ]; then
     rm -f "$CHECKPOINT_FILE"
 fi
 
+fix_apt_permissions() {
+    log "Naprawianie błędów dostępu dla użytkownika _apt..."
+    
+    if [ ! -d "/var/lib/apt/lists/partial/" ]; then
+        log "Katalog /var/lib/apt/lists/partial/ nie istnieje. Tworzę go..."
+        sudo mkdir -p /var/lib/apt/lists/partial/
+    fi
+
+    sudo chown -R _apt:root /var/lib/apt/lists/partial/
+    sudo chmod -R 755 /var/lib/apt/lists/partial/
+}
 check_internet() {
     if ! ping -c 1 google.com &> /dev/null; then
         log "Brak połączenia z Internetem. Sprawdź swoje ustawienia sieciowe." >&2
@@ -76,6 +87,10 @@ if [ "$CHECKPOINT" == "START" ]; then
     log "Sprawdzanie połączenia z Internetem."
     check_internet
     log "Połączenie z Internetem jest aktywne."
+
+      # Naprawianie problemu z dostępem użytkownika _apt
+    fix_apt_permissions
+
     set_checkpoint "INSTALL_RSYNC"
     CHECKPOINT="INSTALL_RSYNC"
 fi
@@ -102,6 +117,14 @@ fi
 if [ "$CHECKPOINT" == "INSTALL_DEPENDENCIES" ]; then
     log "Instalacja brakujących zależności dla RealDash."
     
+      # Naprawianie problemu z dostępem użytkownika _apt
+    fix_apt_permissions
+
+     sudo chown -R _apt:root /var/cache/apt/archives/partial/
+
+    # Instalacja apt-utils przed innymi zależnościami
+    retry_command "apt-get install -y apt-utils"
+
     REQUIRED_PACKAGES=(
         "libbluetooth3"
         "libgles2"
@@ -163,11 +186,12 @@ EOT"
 fi
 
 if [ "$CHECKPOINT" == "ADD_CAN_SUPPORT" ]; then
-    log "Usunięcie parametru COLORTERM."
-    unset COLORTERM
-    ./Dash_installation_process.sh
+
     log "Instalacja pakietu can-utils."
-    retry_command "apt-get install -y can-utils"
+   
+    # Naprawa błędów uprawnień przed instalacją can-utils
+    fix_apt_permissions
+    retry_command "apt-get install -y can-utils
 
     retry_command "dtoverlay mcp2515-can0,oscillator=16000000,interrupt=25"
     retry_command "dtoverlay spi-bcm2835-overlay"
