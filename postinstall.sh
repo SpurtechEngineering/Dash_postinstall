@@ -62,7 +62,6 @@ retry_command() {
             exit 1
         fi
     fi
-}
 
     if [ $success -eq 0 ]; then
         log "Nie udało się wykonać operacji po $max_retries próbach. Zatrzymanie skryptu." >&2
@@ -164,6 +163,9 @@ EOT"
 fi
 
 if [ "$CHECKPOINT" == "ADD_CAN_SUPPORT" ]; then
+    log "Usunięcie parametru COLORTERM."
+    unset COLORTERM
+    ./Dash_installation_process.sh
     log "Instalacja pakietu can-utils."
     retry_command "apt-get install -y can-utils"
 
