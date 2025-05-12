@@ -186,12 +186,11 @@ EOT"
 fi
 
 if [ "$CHECKPOINT" == "ADD_CAN_SUPPORT" ]; then
-
     log "Instalacja pakietu can-utils."
    
     # Naprawa błędów uprawnień przed instalacją can-utils
     fix_apt_permissions
-    retry_command "apt-get install -y can-utils
+    retry_command "apt-get install -y can-utils"
 
     retry_command "dtoverlay mcp2515-can0,oscillator=16000000,interrupt=25"
     retry_command "dtoverlay spi-bcm2835-overlay"
@@ -208,7 +207,7 @@ fi
 
 if [ "$CHECKPOINT" == "ENABLE_CAN_STARTUP" ]; then
     SERVICE_FILE="/etc/systemd/system/monitor_can.service"
-    sudo bash -c "cat <<EOT > $SERVICE_FILE
+    sudo bash -c "cat <<EOT
 [Unit]
 Description=Monitorowanie zmian baudrate dla magistrali CAN
 After=network.target
@@ -224,7 +223,8 @@ SyslogIdentifier=monitor_can
 
 [Install]
 WantedBy=multi-user.target
-EOT"
+EOT
+" > "$SERVICE_FILE"
 
     sudo systemctl daemon-reload
     sudo systemctl enable monitor_can.service
