@@ -3,6 +3,8 @@
 LOG_FILE="/home/Dash_installation_process.log"
 CHECKPOINT_FILE="/home/Dash_installation_checkpoint"
 
+export COLORTERM=""  # Wyłączenie zmiennej, aby uniknąć błędów
+
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 log() {
@@ -326,7 +328,7 @@ if [ "$CHECKPOINT" == "CONFIGURE_AUTOLOGIN" ]; then
     sudo bash -c "cat <<EOT > $AUTLOGIN_SERVICE
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin dietpi --noclear %I \$TERM
+ExecStart=/sbin/agetty --autologin dietpi --noclear %I linux
 EOT"
 
     sudo systemctl daemon-reexec
